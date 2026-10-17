@@ -316,17 +316,7 @@ export default function OrderListScreen({ navigation }) {
             Operatore: {item.user?.full_name || item.user?.username || item.moved_by_name || 'Sconosciuto'}
           </Text>
 
-          {item.scarti ? (
-            <Text style={styles.historyDetail}>Scarti: {item.scarti}</Text>
-          ) : null}
-
-          {item.nc_motivation ? (
-            <Text style={styles.ncNote}>NC: {item.nc_motivation}</Text>
-          ) : null}
-
-          {item.close_date ? (
-            <Text style={styles.historyDetail}>Data chiusura: {item.close_date}</Text>
-          ) : null}
+          null
 
           {item.note ? (
             <Text style={styles.historyNote}>Nota: {item.note}</Text>

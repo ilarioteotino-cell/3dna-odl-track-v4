@@ -52,18 +52,12 @@ CREATE TABLE IF NOT EXISTS order_history (
   to_department_id uuid REFERENCES departments(id),
   moved_by_user_id uuid REFERENCES profiles(id),
   operation_type text NOT NULL CHECK (operation_type IN ('avanzamento', 'retrocessione')),
-  scarti integer DEFAULT 0,
   note text,
   moved_at timestamptz DEFAULT now(),
   -- denormalizzate
   moved_by_name text,
   from_department_name text,
   to_department_name text,
-  close_date date,
-  bem_materiale text,
-  bem_supporto text,
-  nc_number text,
-  nc_motivation text,
   -- NUOVO v4.0: minuti impiegati per la fase
   minutes_spent integer
 );
@@ -195,13 +189,7 @@ SELECT
   dep_from.name AS Dal_reparto,
   dep_to.name AS Al_reparto,
   oh.note AS Note_operazione,
-  oh.scarti AS Qta_scarti,
-  oh.nc_number AS NC,
-  oh.nc_motivation AS Causa_NC,
-  oh.bem_materiale AS Bem_Materiale,
-  oh.bem_supporto AS Bem_Supporto,
-  oh.minutes_spent AS Minuti_fase,
-  o.close_date AS Data_chiusura_ordine
+  oh.minutes_spent AS Minuti_fase
 FROM order_history oh
 LEFT JOIN departments dep_from ON oh.from_department_id = dep_from.id
 LEFT JOIN departments dep_to ON oh.to_department_id = dep_to.id
@@ -333,3 +321,5 @@ CREATE POLICY "Chiusure accessibili a tutti" ON gest_chiusura
 INSERT INTO profiles (username, password_hash, full_name, role, approved)
 VALUES ('admin', 'admin123', 'Amministratore', 'admin', true)
 ON CONFLICT (username) DO NOTHING;
+
+
