@@ -194,7 +194,6 @@ FROM order_history oh
 LEFT JOIN departments dep_from ON oh.from_department_id = dep_from.id
 LEFT JOIN departments dep_to ON oh.to_department_id = dep_to.id
 LEFT JOIN profiles p ON oh.moved_by_user_id = p.id
-LEFT JOIN orders o ON oh.order_id = o.id
 ORDER BY oh.moved_at DESC;
 
 CREATE OR REPLACE VIEW bem_job_view AS
