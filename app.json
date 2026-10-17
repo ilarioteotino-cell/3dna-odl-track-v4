@@ -1,0 +1,44 @@
+{
+  "expo": {
+    "name": "3DnA - Production Tracking v4",
+    "slug": "3dna-production-tracking-v4",
+    "version": "4.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#2D6BA8"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.tdna.production.v3"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#2D6BA8"
+      },
+      "package": "com.tdna.production.v3",
+      "permissions": [
+        "CAMERA"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "b220306a-a745-4905-8c66-6802e875fe3b"
+      }
+    },
+    "plugins": [
+      "expo-secure-store"
+    ]
+  }
+}
