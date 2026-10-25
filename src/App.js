@@ -15,6 +15,7 @@ import RegistraBemFornoScreen from './screens/RegistraBemForno';
 import GestioneNCScreen from './screens/GestioneNC';
 import GestioneBEMScreen from './screens/GestioneBEM';
 import ChiusuraOrdineScreen from './screens/ChiusuraOrdine';
+import RegistroConsumiSLMScreen from './screens/RegistroConsumiSLM';
 
 import { getCurrentUser } from './services/auth';
 
@@ -92,6 +93,11 @@ export default function App() {
           options={{ title: 'Chiusura Ordine' }}
         />
         <Stack.Screen
+          name="RegistroConsumiSLM"
+          component={RegistroConsumiSLMScreen}
+          options={{ title: 'Registro consumi SLM' }}
+        />
+        <Stack.Screen
           name="RegistraBemJob"
           component={RegistraBemJobScreen}
           options={{ title: 'Registra BEM nel JOB' }}
@@ -125,3 +131,4 @@ export default function App() {
     </NavigationContainer>
   );
 }
+

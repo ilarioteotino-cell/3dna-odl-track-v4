@@ -84,6 +84,13 @@ export default function HomeScreen({ navigation }) {
       action: () => navigation.navigate('GestioneBEM'),
     },
     {
+      title: 'Registro consumi SLM',
+      description: 'Registra consumi e lanci JOB per stampante',
+      icon: '🖨️',
+      color: '#0F8B8D',
+      action: () => navigation.navigate('RegistroConsumiSLM'),
+    },
+    {
       title: 'Chiusura Ordine',
       description: 'Dichiara la chiusura con data',
       icon: '✅',
