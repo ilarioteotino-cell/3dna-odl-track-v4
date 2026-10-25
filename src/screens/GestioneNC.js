@@ -23,9 +23,14 @@ import {
   isWeb,
   formatDateTime,
 } from '../utils/validators';
-import { findOrderByItem, addNC, getNCByItem } from '../services/gestione';
+import { findOrderByItem, addNC, disposeNC, getNCByItem } from '../services/gestione';
 
-const MAX_RAC = 5;
+const MAX_NC = 5;
+const DISPOSITIONS = [
+  { value: 'scartare', label: 'Scartare' },
+  { value: 'usare_cosi_com_e', label: "Usare così com'è" },
+  { value: 'rilavorare', label: 'Rilavorare' },
+];
 
 function WebScanner({ visible, onClose, onScan }) {
   const scannerRef = useRef(null);
@@ -132,7 +137,7 @@ function WebScanner({ visible, onClose, onScan }) {
   );
 }
 
-const emptyRow = () => ({ rac: '', causa: '', scarto: '' });
+const emptyRow = () => ({ ncCode: '', causa: '', quantita: '', note: '' });
 
 export default function GestioneNCScreen({ navigation }) {
   const [itemType, setItemType] = useState('ODL');
@@ -144,8 +149,9 @@ export default function GestioneNCScreen({ navigation }) {
   const [order, setOrder] = useState(null);
   const [history, setHistory] = useState([]);
   const [isScanning, setIsScanning] = useState(false);
-  const [racRows, setRacRows] = useState([emptyRow()]);
-  const [note, setNote] = useState('');
+  const [ncRows, setNcRows] = useState([emptyRow()]);
+  const [dispositionDrafts, setDispositionDrafts] = useState({});
+  const [savingDispositionId, setSavingDispositionId] = useState(null);
 
   useEffect(() => {
     loadUser();
@@ -159,8 +165,6 @@ export default function GestioneNCScreen({ navigation }) {
       alertErrore('Errore', "Impossibile caricare l'utente");
     }
   };
-
-  const isODL = itemType === 'ODL';
 
   const handleOpenScanner = () => {
     if (!isWeb) {
@@ -182,8 +186,7 @@ export default function GestioneNCScreen({ navigation }) {
   };
 
   const resetForm = () => {
-    setRacRows([emptyRow()]);
-    setNote('');
+    setNcRows([emptyRow()]);
   };
 
   const handleSearch = async () => {
@@ -201,12 +204,8 @@ export default function GestioneNCScreen({ navigation }) {
       const found = await findOrderByItem(itemType, upperCode);
       setOrder(found);
 
-      if (found) {
-        const data = await getNCByItem(itemType, upperCode);
-        setHistory(data || []);
-      } else {
-        setHistory([]);
-      }
+      const data = await getNCByItem(itemType, upperCode);
+      setHistory(data || []);
 
       setSearched(true);
       resetForm();
@@ -219,25 +218,25 @@ export default function GestioneNCScreen({ navigation }) {
   };
 
   const handleAddRow = () => {
-    if (racRows.length >= MAX_RAC) {
-      alertErrore('Limite raggiunto', `Puoi inserire al massimo ${MAX_RAC} RAC per inserimento`);
+    if (ncRows.length >= MAX_NC) {
+      alertErrore('Limite raggiunto', `Puoi inserire al massimo ${MAX_NC} NC per inserimento`);
       return;
     }
-    setRacRows([...racRows, emptyRow()]);
+    setNcRows([...ncRows, emptyRow()]);
   };
 
   const handleRemoveRow = (index) => {
-    if (racRows.length === 1) {
-      setRacRows([emptyRow()]);
+    if (ncRows.length === 1) {
+      setNcRows([emptyRow()]);
       return;
     }
-    setRacRows(racRows.filter((_, i) => i !== index));
+    setNcRows(ncRows.filter((_, i) => i !== index));
   };
 
   const updateRow = (index, field, value) => {
-    const next = [...racRows];
+    const next = [...ncRows];
     next[index] = { ...next[index], [field]: value };
-    setRacRows(next);
+    setNcRows(next);
   };
 
   const handleSubmit = async () => {
@@ -255,40 +254,27 @@ export default function GestioneNCScreen({ navigation }) {
       return;
     }
 
-    const filledRows = racRows.filter((r) => r.rac.trim() || r.causa.trim());
+    const filledRows = ncRows.filter((r) => r.ncCode.trim() || r.causa.trim() || r.note.trim());
     if (filledRows.length === 0) {
-      alertErrore('Errore', 'Inserisci almeno una RAC');
+      alertErrore('Errore', 'Inserisci almeno una NC');
       return;
     }
 
-    if (isODL) {
-      const missingScarto = filledRows.some(
-        (r) => r.scarto === '' || r.scarto === null || r.scarto === undefined
-      );
-      if (missingScarto) {
-        alertErrore('Errore', 'Per un OdL indica la quantità scartata per ogni RAC');
-        return;
-      }
+    if (filledRows.some((r) => !r.ncCode.trim())) {
+      alertErrore('Errore', 'Indica il codice o la descrizione per ogni NC');
+      return;
+    }
+    if (filledRows.some((r) => !r.quantita || parseInt(r.quantita, 10) < 1)) {
+      alertErrore('Errore', 'Indica una quantità non conforme maggiore di zero per ogni NC');
+      return;
     }
 
     const userLabel =
       currentUser?.full_name || currentUser?.username || 'Sconosciuto';
 
-    const racList = [];
-    const causaList = [];
-    const scartoList = [];
-    for (let i = 0; i < MAX_RAC; i++) {
-      const r = filledRows[i];
-      racList.push(r ? r.rac.trim().toUpperCase() : null);
-      causaList.push(r ? (r.causa.trim() || null) : null);
-      scartoList.push(r && isODL ? r.scarto : null);
-    }
-
-    const racLabel = filledRows
-      .map((r, i) => {
-        const sc = isODL ? ` — Scarti: ${r.scarto}` : '';
-        return `RAC ${i + 1}: ${r.rac.trim().toUpperCase()}${sc}\n  Causale: ${r.causa.trim() || '-'}`;
-      })
+    const nextNumber = history.reduce((max, item) => Math.max(max, item.nc_number || 0), 0) + 1;
+    const ncSummary = filledRows
+      .map((r, i) => `NC ${nextNumber + i}: ${r.ncCode.trim()} — Quantità: ${r.quantita}`)
       .join('\n');
 
     const orderInfo = order
@@ -297,34 +283,83 @@ export default function GestioneNCScreen({ navigation }) {
 
     const conferma = await confirmAzione(
       `${userLabel}, confermi l'inserimento NC?`,
-      `${itemType}: ${upperCode}\n${orderInfo}\n\n${racLabel}${note.trim() ? `\n\nNote: ${note.trim()}` : ''}`
+      `${itemType}: ${upperCode}\n${orderInfo}\n\n${ncSummary}`
     );
 
     if (!conferma) return;
 
     setLoading(true);
     try {
-      await addNC({
+      const inserted = await addNC({
         orderId: order?.id || null,
         itemType,
         itemCode: upperCode,
         insertedBy: currentUser.id,
         insertedByName: userLabel,
-        note: note.trim() || null,
-        racList,
-        causaList,
-        scartoList,
+        entries: filledRows.map((row) => ({
+          ncCode: row.ncCode.trim(),
+          causa: row.causa.trim() || null,
+          quantita: row.quantita,
+          note: row.note.trim() || null,
+        })),
       });
 
       const data = await getNCByItem(itemType, upperCode);
       setHistory(data || []);
 
-      alertSuccesso('NC registrata!', `${itemType} ${upperCode}\n${filledRows.length} RAC inserite`);
+      alertSuccesso(
+        'NC registrate!',
+        inserted.map((item) => `NC ${item.nc_number} — ${item.nc_code}`).join('\n')
+      );
       resetForm();
     } catch (error) {
       alertErrore('Errore', error?.message || 'Impossibile registrare la NC');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const updateDispositionDraft = (id, field, value) => {
+    setDispositionDrafts((current) => ({
+      ...current,
+      [id]: { ...current[id], [field]: value },
+    }));
+  };
+
+  const handleDisposeNC = async (item) => {
+    const draft = dispositionDrafts[item.id] || {};
+    if (!draft.type) {
+      alertErrore('Disposizione mancante', 'Seleziona una disposizione tecnica.');
+      return;
+    }
+    if (!currentUser) {
+      alertErrore('Errore', 'Utente non autenticato');
+      return;
+    }
+
+    const userLabel = currentUser.full_name || currentUser.username || 'Sconosciuto';
+    const confirmed = await confirmAzione(
+      `${userLabel}, confermi la disposizione?`,
+      `NC ${item.nc_number} — ${item.nc_code}\nDisposizione: ${DISPOSITIONS.find((d) => d.value === draft.type)?.label}`
+    );
+    if (!confirmed) return;
+
+    setSavingDispositionId(item.id);
+    try {
+      await disposeNC({
+        id: item.id,
+        disposedBy: currentUser.id,
+        disposedByName: userLabel,
+        dispositionType: draft.type,
+        dispositionNote: draft.note?.trim() || null,
+      });
+      const data = await getNCByItem(itemType, itemCode.trim().toUpperCase());
+      setHistory(data || []);
+      alertSuccesso('Disposizione registrata', `NC ${item.nc_number} aggiornata.`);
+    } catch (error) {
+      alertErrore('Errore', error?.message || 'Impossibile registrare la disposizione');
+    } finally {
+      setSavingDispositionId(null);
     }
   };
 
@@ -444,58 +479,126 @@ export default function GestioneNCScreen({ navigation }) {
                   <Text style={styles.emptyText}>Nessuna NC registrata per questo ordine</Text>
                 </View>
               ) : (
-                history.map((item) => (
-                  <View key={item.id} style={styles.historyCard}>
-                    <Text style={styles.historyDate}>
-                      {formatDateTime(item.inserted_at)} — {item.inserted_by_name || 'Sconosciuto'}
-                    </Text>
-                    {[1, 2, 3, 4, 5].map((n) => {
-                      const rac = item[`rac${n}`];
-                      if (!rac) return null;
-                      const causa = item[`causa${n}`];
-                      const scarto = item[`scarto${n}`];
-                      return (
-                        <View key={n} style={styles.historyRow}>
-                          <Text style={styles.historyRac}>{rac}</Text>
-                          <Text style={styles.historyCausa}>Causale: {causa || '-'}</Text>
-                          {isODL && scarto !== null && scarto !== undefined && (
-                            <Text style={styles.historyScarto}>Scarti: {scarto}</Text>
-                          )}
+                history.map((item) => {
+                  const isDisposed = Boolean(item.disposizione_at);
+                  const draft = dispositionDrafts[item.id] || {};
+                  const dispositionLabel = DISPOSITIONS.find(
+                    (option) => option.value === item.disposizione_tipo
+                  )?.label;
+                  return (
+                    <View
+                      key={item.id}
+                      style={[
+                        styles.historyCard,
+                        isDisposed ? styles.disposedCard : styles.pendingCard,
+                      ]}
+                    >
+                      <View style={styles.ncCardHeader}>
+                        <Text style={styles.historyRac}>NC {item.nc_number}</Text>
+                        <Text style={[styles.statusBadge, isDisposed ? styles.statusDone : styles.statusPending]}>
+                          {isDisposed ? 'DISPOSIZIONATA' : 'DA DISPOSIZIONARE'}
+                        </Text>
+                      </View>
+                      <Text style={styles.historyDate}>
+                        Inserita {formatDateTime(item.inserted_at)} da {item.inserted_by_name || 'Sconosciuto'}
+                      </Text>
+                      <Text style={styles.historyRac}>{item.nc_code}</Text>
+                      {item.causa ? <Text style={styles.historyCausa}>Causale: {item.causa}</Text> : null}
+                      <Text
+                        style={[
+                          styles.historyQuantity,
+                          item.disposizione_tipo === 'scartare' && styles.scrapText,
+                        ]}
+                      >
+                        Quantità non conforme: {item.quantita_nc}
+                      </Text>
+                      {item.note ? <Text style={styles.historyNote}>Note NC: {item.note}</Text> : null}
+
+                      {isDisposed ? (
+                        <View style={styles.dispositionDetails}>
+                          <Text style={[
+                            styles.dispositionTitle,
+                            item.disposizione_tipo === 'scartare' && styles.scrapText,
+                          ]}>
+                            Disposizione: {dispositionLabel || item.disposizione_tipo}
+                          </Text>
+                          <Text style={styles.historyDate}>
+                            Registrata {formatDateTime(item.disposizione_at)} da {item.disposizione_by_name || 'Sconosciuto'}
+                          </Text>
+                          {item.disposizione_nota ? (
+                            <Text style={styles.historyNote}>Nota disposizione: {item.disposizione_nota}</Text>
+                          ) : null}
                         </View>
-                      );
-                    })}
-                    {item.note ? (
-                      <Text style={styles.historyNote}>Note: {item.note}</Text>
-                    ) : null}
-                  </View>
-                ))
+                      ) : (
+                        <View style={styles.dispositionDetails}>
+                          <Text style={styles.smallLabel}>Disposizione tecnica</Text>
+                          <View style={styles.dispositionOptions}>
+                            {DISPOSITIONS.map((option) => (
+                              <TouchableOpacity
+                                key={option.value}
+                                style={[
+                                  styles.dispositionOption,
+                                  draft.type === option.value && styles.dispositionOptionActive,
+                                ]}
+                                onPress={() => updateDispositionDraft(item.id, 'type', option.value)}
+                              >
+                                <Text style={[
+                                  styles.dispositionOptionText,
+                                  draft.type === option.value && styles.dispositionOptionTextActive,
+                                ]}>{option.label}</Text>
+                              </TouchableOpacity>
+                            ))}
+                          </View>
+                          <TextInput
+                            style={[styles.input, styles.textArea]}
+                            value={draft.note || ''}
+                            onChangeText={(value) => updateDispositionDraft(item.id, 'note', sanitizeInput(value))}
+                            placeholder="Nota per chi dispone (opzionale)"
+                            placeholderTextColor="#999"
+                            multiline
+                            numberOfLines={2}
+                          />
+                          <TouchableOpacity
+                            style={[styles.dispositionButton, savingDispositionId === item.id && styles.buttonDisabled]}
+                            onPress={() => handleDisposeNC(item)}
+                            disabled={savingDispositionId === item.id}
+                          >
+                            {savingDispositionId === item.id ? (
+                              <ActivityIndicator color="#fff" size="small" />
+                            ) : <Text style={styles.buttonText}>Registra disposizione</Text>}
+                          </TouchableOpacity>
+                        </View>
+                      )}
+                    </View>
+                  );
+                })
               )}
 
               <View style={styles.divider} />
 
               <Text style={styles.sectionTitle}>Nuovo inserimento NC</Text>
               <Text style={styles.hint}>
-                Puoi inserire fino a {MAX_RAC} RAC. Ogni inserimento viene salvato con la
-                sua data e resta nello storico.
+                Puoi inserire fino a {MAX_NC} NC per volta. Ogni NC ha quantità e note
+                proprie; il progressivo viene assegnato automaticamente.
               </Text>
 
-              {racRows.map((row, index) => (
+              {ncRows.map((row, index) => (
                 <View key={index} style={styles.racCard}>
                   <View style={styles.racHeader}>
-                    <Text style={styles.racTitle}>RAC {index + 1}</Text>
-                    {racRows.length > 1 && (
+                    <Text style={styles.racTitle}>NC {history.reduce((max, item) => Math.max(max, item.nc_number || 0), 0) + index + 1}</Text>
+                    {ncRows.length > 1 && (
                       <TouchableOpacity onPress={() => handleRemoveRow(index)}>
                         <Text style={styles.removeText}>Rimuovi</Text>
                       </TouchableOpacity>
                     )}
                   </View>
 
-                  <Text style={styles.smallLabel}>RAC</Text>
+                  <Text style={styles.smallLabel}>Codice o descrizione NC</Text>
                   <TextInput
                     style={styles.input}
-                    value={row.rac}
-                    onChangeText={(v) => updateRow(index, 'rac', sanitizeInput(v))}
-                    placeholder="Es: RAC-2026-001"
+                    value={row.ncCode}
+                    onChangeText={(v) => updateRow(index, 'ncCode', sanitizeInput(v))}
+                    placeholder="Descrivi la non conformità"
                     placeholderTextColor="#999"
                     autoCapitalize="characters"
                   />
@@ -511,45 +614,39 @@ export default function GestioneNCScreen({ navigation }) {
                     numberOfLines={2}
                   />
 
-                  {isODL && (
-                    <>
-                      <Text style={styles.smallLabel}>Quantità scartata</Text>
-                      <TextInput
-                        style={styles.input}
-                        value={String(row.scarto)}
-                        onChangeText={(v) =>
-                          updateRow(index, 'scarto', sanitizeInput(v).replace(/[^0-9]/g, ''))
-                        }
-                        placeholder="Es: 3"
-                        placeholderTextColor="#999"
-                        keyboardType="numeric"
-                        maxLength={6}
-                      />
-                    </>
-                  )}
+                  <Text style={styles.smallLabel}>Quantità non conforme</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={row.quantita}
+                    onChangeText={(v) => updateRow(index, 'quantita', sanitizeInput(v).replace(/[^0-9]/g, ''))}
+                    placeholder="Es: 3"
+                    placeholderTextColor="#999"
+                    keyboardType="numeric"
+                    maxLength={6}
+                  />
+
+                  <Text style={styles.smallLabel}>Note della NC (opzionali)</Text>
+                  <TextInput
+                    style={[styles.input, styles.textArea]}
+                    value={row.note}
+                    onChangeText={(v) => updateRow(index, 'note', sanitizeInput(v))}
+                    placeholder="Note specifiche per questa NC..."
+                    placeholderTextColor="#999"
+                    multiline
+                    numberOfLines={2}
+                  />
                 </View>
               ))}
 
               <TouchableOpacity
-                style={[styles.addRowButton, racRows.length >= MAX_RAC && styles.buttonDisabled]}
+                style={[styles.addRowButton, ncRows.length >= MAX_NC && styles.buttonDisabled]}
                 onPress={handleAddRow}
-                disabled={racRows.length >= MAX_RAC}
+                disabled={ncRows.length >= MAX_NC}
               >
                 <Text style={styles.addRowText}>
-                  + Inserisci RAC ({racRows.length}/{MAX_RAC})
+                  + Aggiungi NC ({ncRows.length}/{MAX_NC})
                 </Text>
               </TouchableOpacity>
-
-              <Text style={styles.label}>Note (opzionale)</Text>
-              <TextInput
-                style={[styles.input, styles.textArea]}
-                value={note}
-                onChangeText={(v) => setNote(sanitizeInput(v))}
-                placeholder="Note aggiuntive sull'inserimento..."
-                placeholderTextColor="#999"
-                multiline
-                numberOfLines={2}
-              />
 
               <TouchableOpacity
                 style={[styles.submitButton, loading && styles.buttonDisabled]}
@@ -715,6 +812,12 @@ const styles = StyleSheet.create({
     borderLeftColor: '#E53935',
     elevation: 2,
   },
+  pendingCard: { backgroundColor: '#FFF5F5', borderColor: '#E53935', borderLeftColor: '#E53935' },
+  disposedCard: { backgroundColor: '#F1F8F2', borderColor: '#66BB6A', borderLeftColor: '#2E7D32' },
+  ncCardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 8 },
+  statusBadge: { borderRadius: 12, paddingHorizontal: 9, paddingVertical: 5, fontSize: 10, fontWeight: '700' },
+  statusPending: { backgroundColor: '#FDE2E2', color: '#B71C1C' },
+  statusDone: { backgroundColor: '#DDF1DF', color: '#1B5E20' },
   historyDate: { fontSize: 12, color: '#999', marginBottom: 8 },
   historyRow: {
     borderTopWidth: 1,
@@ -725,7 +828,17 @@ const styles = StyleSheet.create({
   historyRac: { fontSize: 15, fontWeight: 'bold', color: '#333' },
   historyCausa: { fontSize: 13, color: '#666', marginTop: 2 },
   historyScarto: { fontSize: 13, color: '#E53935', fontWeight: '600', marginTop: 2 },
+  historyQuantity: { fontSize: 14, color: '#444', fontWeight: '700', marginTop: 8 },
+  scrapText: { color: '#D32F2F' },
   historyNote: { fontSize: 12, color: '#999', marginTop: 8, fontStyle: 'italic' },
+  dispositionDetails: { borderTopWidth: 1, borderTopColor: '#e7e7e7', marginTop: 12, paddingTop: 8 },
+  dispositionTitle: { fontSize: 15, fontWeight: '700', color: '#333', marginTop: 4 },
+  dispositionOptions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 10 },
+  dispositionOption: { borderWidth: 1, borderColor: '#bbb', borderRadius: 8, paddingVertical: 9, paddingHorizontal: 11, backgroundColor: '#fff' },
+  dispositionOptionActive: { backgroundColor: '#2D6BA8', borderColor: '#2D6BA8' },
+  dispositionOptionText: { color: '#555', fontSize: 13, fontWeight: '600' },
+  dispositionOptionTextActive: { color: '#fff' },
+  dispositionButton: { backgroundColor: '#2D6BA8', padding: 13, borderRadius: 8, alignItems: 'center', marginTop: 10 },
   racCard: {
     backgroundColor: '#fff',
     padding: 15,
@@ -759,3 +872,4 @@ const styles = StyleSheet.create({
   closeScannerBtn: { backgroundColor: '#E53935', padding: 15, borderRadius: 10, marginTop: 20, alignItems: 'center' },
   closeScannerText: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
 });
+

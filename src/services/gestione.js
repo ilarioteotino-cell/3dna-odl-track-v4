@@ -64,36 +64,51 @@ export const addNC = async ({
   itemCode,
   insertedBy,
   insertedByName,
-  note,
-  racList,
-  causaList,
-  scartoList,
+  entries,
 }) => {
-  const payload = {
+  const payload = entries.map((entry) => ({
     order_id: orderId,
     item_type: itemType,
     item_code: itemCode,
     inserted_by: insertedBy,
     inserted_by_name: insertedByName,
-    note: note || null,
-  };
-
-  for (let i = 0; i < 5; i++) {
-    payload[`rac${i + 1}`] = racList[i] || null;
-    payload[`causa${i + 1}`] = causaList[i] || null;
-    payload[`scarto${i + 1}`] =
-      scartoList[i] !== undefined && scartoList[i] !== ''
-        ? parseInt(scartoList[i], 10) || 0
-        : null;
-  }
+    nc_code: entry.ncCode || null,
+    causa: entry.causa || null,
+    quantita_nc: parseInt(entry.quantita, 10),
+    note: entry.note || null,
+  }));
 
   const { data, error } = await supabase
     .from('gest_nc')
-    .insert([payload])
-    .select()
-    .single();
+    .insert(payload)
+    .select();
 
   if (error) throw error;
+  return data;
+};
+
+export const disposeNC = async ({
+  id,
+  disposedBy,
+  disposedByName,
+  dispositionType,
+  dispositionNote,
+}) => {
+  const { data, error } = await supabase
+    .from('gest_nc')
+    .update({
+      disposizione_tipo: dispositionType,
+      disposizione_nota: dispositionNote || null,
+      disposizione_by: disposedBy,
+      disposizione_by_name: disposedByName,
+    })
+    .eq('id', id)
+    .is('disposizione_at', null)
+    .select()
+    .maybeSingle();
+
+  if (error) throw error;
+  if (!data) throw new Error('Questa NC è già stata disposizionata. Aggiorna lo storico.');
   return data;
 };
 
@@ -103,7 +118,7 @@ export const getNCByItem = async (itemType, itemCode) => {
     .select('*')
     .eq('item_type', itemType)
     .eq('item_code', itemCode)
-    .order('inserted_at', { ascending: true });
+    .order('nc_number', { ascending: true });
 
   if (error) throw error;
   return data || [];
@@ -246,3 +261,4 @@ export const getRecentChiusure = async (limit = 100) => {
   if (error) throw error;
   return data || [];
 };
+
