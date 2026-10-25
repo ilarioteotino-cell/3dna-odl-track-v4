@@ -12,6 +12,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { Picker } from '@react-native-picker/picker';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { getCurrentUser } from '../services/auth';
 import {
@@ -469,6 +470,10 @@ export default function RegistroConsumiSLMScreen({ navigation }) {
   const allMissing = missingFields(form);
   const visibleMissing = showValidation ? allMissing : [];
   const missingKeys = new Set(visibleMissing.map((field) => field.key));
+  const visibleMissingLabels = showValidation
+    ? [...(!printer ? ['Stampante SLM'] : []), ...visibleMissing.map((field) => field.label)]
+    : [];
+  const formIsComplete = Boolean(printer) && allMissing.length === 0;
 
   const renderForm = () => (
     <>
@@ -476,21 +481,6 @@ export default function RegistroConsumiSLMScreen({ navigation }) {
         <Text style={styles.registryLinkTitle}>Registro per JOB</Text>
         <Text style={styles.registryLinkText}>Apri l’elenco aggiornato e consulta le versioni precedenti →</Text>
       </TouchableOpacity>
-
-      <Text style={styles.sectionTitle}>Stampante SLM</Text>
-      <Text style={[styles.label, showValidation && !printer && styles.labelMissing]}>Seleziona la stampante</Text>
-      <View style={styles.printerGrid}>
-        {printers.map((item) => (
-          <TouchableOpacity
-            key={item}
-            style={[styles.printerOption, printer === item && styles.printerOptionActive, showValidation && !printer && styles.printerOptionMissing]}
-            onPress={() => setPrinter(item)}
-          >
-            <Text style={[styles.printerOptionText, printer === item && styles.printerOptionTextActive]}>{item}</Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-      {showValidation && !printer ? <Text style={styles.fieldError}>Seleziona una stampante</Text> : null}
 
       <Text style={[styles.sectionTitle, styles.jobSectionTitle]}>JOB</Text>
       <Text style={styles.label}>Numero JOB</Text>
@@ -523,19 +513,35 @@ export default function RegistroConsumiSLMScreen({ navigation }) {
               <Text style={styles.jobBannerLabel}>JOB SELEZIONATO</Text>
               <Text style={styles.jobBannerValue}>{jobNumber}</Text>
             </View>
-              <View style={[styles.statusBadge, allMissing.length === 0 ? styles.statusComplete : styles.statusIncomplete]}>
-              <Text style={[styles.statusText, allMissing.length === 0 ? styles.statusTextComplete : styles.statusTextIncomplete]}>
-                {allMissing.length === 0 ? 'COMPLETO' : 'DA COMPLETARE'}
+            <View style={[styles.statusBadge, formIsComplete ? styles.statusComplete : styles.statusIncomplete]}>
+              <Text style={[styles.statusText, formIsComplete ? styles.statusTextComplete : styles.statusTextIncomplete]}>
+                {formIsComplete ? 'COMPLETO' : 'DA COMPLETARE'}
               </Text>
             </View>
           </View>
 
-          {showValidation && visibleMissing.length > 0 ? (
+          {showValidation && visibleMissingLabels.length > 0 ? (
             <View style={styles.missingSummary}>
               <Text style={styles.missingSummaryTitle}>Campi da completare</Text>
-              <Text style={styles.missingSummaryText}>{visibleMissing.map((field) => field.label).join(' · ')}</Text>
+              <Text style={styles.missingSummaryText}>{visibleMissingLabels.join(' · ')}</Text>
             </View>
           ) : null}
+
+          <Text style={styles.sectionTitle}>Stampante SLM</Text>
+          <Text style={[styles.label, showValidation && !printer && styles.labelMissing]}>Stampante · obbligatoria</Text>
+          <View style={[styles.pickerContainer, showValidation && !printer && styles.pickerMissing]}>
+            <Picker
+              selectedValue={printer}
+              onValueChange={(value) => setPrinter(value)}
+              style={styles.picker}
+            >
+              <Picker.Item label="Seleziona stampante SLM" value="" />
+              {printers.map((item) => (
+                <Picker.Item key={item} label={item} value={item} />
+              ))}
+            </Picker>
+          </View>
+          {showValidation && !printer ? <Text style={styles.fieldError}>Seleziona una stampante</Text> : null}
 
           <Text style={styles.sectionTitle}>Dati di lancio</Text>
           {REQUIRED_FIELDS.map((field) => {
@@ -731,12 +737,9 @@ const styles = StyleSheet.create({
   jobSectionTitle: { marginTop: 23 },
   label: { color: '#384B5D', fontSize: 14, fontWeight: '600', marginBottom: 7 },
   labelMissing: { color: '#B42318' },
-  printerGrid: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: 4 },
-  printerOption: { width: '48%', minHeight: 48, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff', borderWidth: 1, borderColor: '#D6DEE7', borderRadius: 11, marginRight: '2%', marginBottom: 9, padding: 9 },
-  printerOptionActive: { backgroundColor: '#E9F2FB', borderColor: '#2D6BA8', borderWidth: 2 },
-  printerOptionMissing: { borderColor: '#D92D20' },
-  printerOptionText: { color: '#3D4D5D', fontSize: 13, fontWeight: '600', textAlign: 'center' },
-  printerOptionTextActive: { color: '#245A8D' },
+  pickerContainer: { backgroundColor: '#fff', borderRadius: 10, borderWidth: 1, borderColor: '#D6DEE7', marginBottom: 10, overflow: 'hidden' },
+  pickerMissing: { borderColor: '#D92D20', borderWidth: 1.5 },
+  picker: { height: 50, width: '100%' },
   inputRow: { flexDirection: 'row', alignItems: 'center' },
   jobInput: { flex: 1, minHeight: 50, backgroundColor: '#fff', borderColor: '#D6DEE7', borderWidth: 1, borderRadius: 10, paddingHorizontal: 13, color: '#1F2937', fontSize: 16 },
   scanButton: { width: 56, height: 50, marginLeft: 9, backgroundColor: '#2D6BA8', borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
