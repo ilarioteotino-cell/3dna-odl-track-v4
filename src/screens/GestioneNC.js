@@ -23,7 +23,7 @@ import {
   isWeb,
   formatDateTime,
 } from '../utils/validators';
-import { findOrderByItem, addNC, disposeNC, getNCByItem } from '../services/gestione';
+import { findOrderByItem, addNC, disposeNC, getNCByItem, getNCByOrder } from '../services/gestione';
 
 const MAX_NC = 5;
 const DISPOSITIONS = [
@@ -204,7 +204,9 @@ export default function GestioneNCScreen({ navigation }) {
       const found = await findOrderByItem(itemType, upperCode);
       setOrder(found);
 
-      const data = await getNCByItem(itemType, upperCode);
+      const data = found
+        ? await getNCByOrder(found.id)
+        : await getNCByItem(itemType, upperCode);
       setHistory(data || []);
 
       setSearched(true);
@@ -304,7 +306,9 @@ export default function GestioneNCScreen({ navigation }) {
         })),
       });
 
-      const data = await getNCByItem(itemType, upperCode);
+      const data = order?.id
+        ? await getNCByOrder(order.id)
+        : await getNCByItem(itemType, upperCode);
       setHistory(data || []);
 
       alertSuccesso(
@@ -353,7 +357,9 @@ export default function GestioneNCScreen({ navigation }) {
         dispositionType: draft.type,
         dispositionNote: draft.note?.trim() || null,
       });
-      const data = await getNCByItem(itemType, itemCode.trim().toUpperCase());
+      const data = order?.id
+        ? await getNCByOrder(order.id)
+        : await getNCByItem(itemType, itemCode.trim().toUpperCase());
       setHistory(data || []);
       alertSuccesso('Disposizione registrata', `NC ${item.nc_number} aggiornata.`);
     } catch (error) {

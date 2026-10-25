@@ -124,6 +124,17 @@ export const getNCByItem = async (itemType, itemCode) => {
   return data || [];
 };
 
+export const getNCByOrder = async (orderId) => {
+  const { data, error } = await supabase
+    .from('gest_nc')
+    .select('*')
+    .eq('order_id', orderId)
+    .order('nc_number', { ascending: true });
+
+  if (error) throw error;
+  return data || [];
+};
+
 export const getRecentNC = async (limit = 100) => {
   const { data, error } = await supabase
     .from('gest_nc')

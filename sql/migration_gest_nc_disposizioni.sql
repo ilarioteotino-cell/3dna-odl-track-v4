@@ -88,20 +88,30 @@ update public.gest_nc
 set nc_code = 'NC legacy ' || left(id::text, 8)
 where nc_code is null;
 
+drop index if exists public.idx_gest_nc_item_progressivo;
+drop index if exists public.idx_gest_nc_order_progressivo;
+drop index if exists public.idx_gest_nc_unlinked_progressivo;
+
 with numbered as (
   select id,
-         coalesce(max(nc_number) over (partition by item_type, item_code), 0)
-           + row_number() over (partition by item_type, item_code order by inserted_at, id) as assigned_number
+         row_number() over (
+           partition by coalesce(order_id::text, item_type || ':' || item_code)
+           order by inserted_at, coalesce(legacy_source_id, id), coalesce(legacy_slot, 0), id
+         ) as assigned_number
   from public.gest_nc
-  where nc_number is null
 )
 update public.gest_nc g
 set nc_number = numbered.assigned_number
 from numbered
-where g.id = numbered.id;
+where g.id = numbered.id
+  and g.nc_number is distinct from numbered.assigned_number;
 
-create unique index if not exists idx_gest_nc_item_progressivo
-  on public.gest_nc(item_type, item_code, nc_number);
+create unique index if not exists idx_gest_nc_order_progressivo
+  on public.gest_nc(order_id, nc_number)
+  where order_id is not null;
+create unique index if not exists idx_gest_nc_unlinked_progressivo
+  on public.gest_nc(item_type, item_code, nc_number)
+  where order_id is null;
 create unique index if not exists idx_gest_nc_legacy_slot
   on public.gest_nc(legacy_source_id, legacy_slot)
   where legacy_source_id is not null and legacy_slot is not null;
@@ -113,11 +123,15 @@ set search_path = public
 as $$
 begin
   if new.nc_number is null then
-    perform pg_advisory_xact_lock(hashtextextended(new.item_type || ':' || new.item_code, 0));
+    perform pg_advisory_xact_lock(
+      hashtextextended(coalesce(new.order_id::text, new.item_type || ':' || new.item_code), 0)
+    );
     select coalesce(max(nc_number), 0) + 1
       into new.nc_number
       from public.gest_nc
-      where item_type = new.item_type and item_code = new.item_code;
+      where (new.order_id is not null and order_id = new.order_id)
+         or (new.order_id is null and order_id is null
+             and item_type = new.item_type and item_code = new.item_code);
   end if;
   return new;
 end;
