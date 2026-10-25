@@ -156,7 +156,7 @@ export default function HomeScreen({ navigation }) {
         <Text style={styles.headerSubtitle}>Benvenuto, {user?.full_name}</Text>
       </View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.userInfoCard}>
           <Text style={styles.userInfoText}>
             Ruolo: {user?.role === 'admin' ? '👑 Amministratore' : '👨‍💼 Operatore'}
@@ -166,22 +166,22 @@ export default function HomeScreen({ navigation }) {
           </Text>
         </View>
 
-        {menuItems.map((item, index) => (
-          <TouchableOpacity
-            key={index}
-            style={styles.menuCard}
-            onPress={item.action}
-          >
-            <View style={[styles.iconContainer, { backgroundColor: item.color }]}>
-              <Text style={styles.icon}>{item.icon}</Text>
-            </View>
-            <View style={styles.menuContent}>
+        <View style={styles.menuGrid}>
+          {menuItems.map((item, index) => (
+            <TouchableOpacity
+              key={index}
+              style={styles.menuCard}
+              onPress={item.action}
+              activeOpacity={0.78}
+            >
+              <View style={[styles.iconContainer, { backgroundColor: `${item.color}18` }]}>
+                <Text style={styles.icon}>{item.icon}</Text>
+              </View>
               <Text style={styles.menuTitle}>{item.title}</Text>
               <Text style={styles.menuDescription}>{item.description}</Text>
-            </View>
-            <Text style={styles.arrow}>→</Text>
-          </TouchableOpacity>
-        ))}
+            </TouchableOpacity>
+          ))}
+        </View>
 
         <TouchableOpacity
           style={styles.logoutButton}
@@ -200,7 +200,7 @@ export default function HomeScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f5f5f5' },
+  container: { flex: 1, backgroundColor: '#F3F6FA' },
   header: {
     backgroundColor: '#2D6BA8',
     padding: 20,
@@ -228,6 +228,7 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: 20,
+    paddingBottom: 28,
   },
   userInfoCard: {
     backgroundColor: '#fff',
@@ -244,47 +245,47 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     fontWeight: '500',
   },
+  menuGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
   menuCard: {
     backgroundColor: '#fff',
+    width: '48%',
+    minHeight: 154,
     padding: 15,
-    borderRadius: 10,
-    marginBottom: 15,
-    flexDirection: 'row',
-    alignItems: 'center',
-    elevation: 3,
+    borderRadius: 18,
+    marginBottom: 14,
+    alignItems: 'flex-start',
+    elevation: 2,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.07,
+    shadowRadius: 8,
   },
   iconContainer: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+    width: 48,
+    height: 48,
+    borderRadius: 15,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 15,
+    marginBottom: 12,
   },
   icon: {
-    fontSize: 28,
-  },
-  menuContent: {
-    flex: 1,
+    fontSize: 25,
   },
   menuTitle: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: 'bold',
     color: '#333',
-    marginBottom: 5,
+    marginBottom: 6,
   },
   menuDescription: {
-    fontSize: 13,
+    fontSize: 12,
     color: '#666',
-  },
-  arrow: {
-    fontSize: 20,
-    color: '#2D6BA8',
-    fontWeight: 'bold',
+    lineHeight: 17,
   },
   logoutButton: {
     backgroundColor: '#FF3B30',
@@ -314,3 +315,4 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
   },
 });
+
