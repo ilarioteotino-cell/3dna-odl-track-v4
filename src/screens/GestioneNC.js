@@ -166,6 +166,9 @@ export default function GestioneNCScreen({ navigation }) {
     }
   };
 
+  const nextNCNumber =
+    history.reduce((max, item) => Math.max(max, item.nc_number || 0), 0) + 1;
+
   const handleOpenScanner = () => {
     if (!isWeb) {
       alertErrore('Non disponibile', 'Lo scanner QR è attivo solo su web.');
@@ -274,9 +277,8 @@ export default function GestioneNCScreen({ navigation }) {
     const userLabel =
       currentUser?.full_name || currentUser?.username || 'Sconosciuto';
 
-    const nextNumber = history.reduce((max, item) => Math.max(max, item.nc_number || 0), 0) + 1;
     const ncSummary = filledRows
-      .map((r, i) => `NC ${nextNumber + i}: ${r.ncCode.trim()} — Quantità: ${r.quantita}`)
+      .map((r, i) => `NC ${nextNCNumber + i}: ${r.ncCode.trim()} — Quantità: ${r.quantita}`)
       .join('\n');
 
     const orderInfo = order
@@ -582,7 +584,9 @@ export default function GestioneNCScreen({ navigation }) {
 
               <View style={styles.divider} />
 
-              <Text style={styles.sectionTitle}>Nuovo inserimento NC</Text>
+              <Text style={styles.sectionTitle}>
+                Nuovo inserimento NC — progressivo da NC {nextNCNumber}
+              </Text>
               <Text style={styles.hint}>
                 Puoi inserire fino a {MAX_NC} NC per volta. Ogni NC ha quantità e note
                 proprie; il progressivo viene assegnato automaticamente.
@@ -591,7 +595,7 @@ export default function GestioneNCScreen({ navigation }) {
               {ncRows.map((row, index) => (
                 <View key={index} style={styles.racCard}>
                   <View style={styles.racHeader}>
-                    <Text style={styles.racTitle}>NC {history.reduce((max, item) => Math.max(max, item.nc_number || 0), 0) + index + 1}</Text>
+                    <Text style={styles.racTitle}>NC {nextNCNumber + index}</Text>
                     {ncRows.length > 1 && (
                       <TouchableOpacity onPress={() => handleRemoveRow(index)}>
                         <Text style={styles.removeText}>Rimuovi</Text>
@@ -650,7 +654,7 @@ export default function GestioneNCScreen({ navigation }) {
                 disabled={ncRows.length >= MAX_NC}
               >
                 <Text style={styles.addRowText}>
-                  + Aggiungi NC ({ncRows.length}/{MAX_NC})
+                  + Aggiungi NC (prossima: NC {nextNCNumber + ncRows.length}) · {ncRows.length}/{MAX_NC}
                 </Text>
               </TouchableOpacity>
 
