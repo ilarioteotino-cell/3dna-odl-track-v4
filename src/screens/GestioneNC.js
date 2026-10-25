@@ -654,7 +654,7 @@ export default function GestioneNCScreen({ navigation }) {
                 disabled={ncRows.length >= MAX_NC}
               >
                 <Text style={styles.addRowText}>
-                  + Aggiungi NC (prossima: NC {nextNCNumber + ncRows.length}) · {ncRows.length}/{MAX_NC}
+                  + Aggiungi NC ({nextNCNumber + ncRows.length - 1}/{MAX_NC})
                 </Text>
               </TouchableOpacity>
 
